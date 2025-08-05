@@ -1,0 +1,1238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rubik's Cube Solver</title>
+    <!-- Tailwind CSS CDN for modern styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Apply Inter font and basic body styling */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #333; /* Darker background for the body */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        /* Styling for the main cube display area */
+        .cube-container {
+            width: 300px; /* Fixed width for the main cube */
+            height: 300px; /* Fixed height for the main cube */
+            margin-bottom: 20px;
+            background-color: #000; /* Black background for the cube container */
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 4px; /* Small padding inside the container */
+        }
+        /* Grid layout for manual rotation buttons */
+        .button-grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr); /* 6 columns for moves and their inverses */
+            gap: 10px; /* Spacing between buttons */
+            margin-top: 20px;
+            width: 100%;
+            max-width: 600px; /* Limit width for better layout */
+        }
+        /* Styling for the solution steps display area */
+        .solution-steps {
+            background-color: #222; /* Darker background for solution steps */
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-top: 20px;
+            width: 100%;
+            max-width: 800px; /* Max width for readability */
+            max-height: 400px; /* Scrollable if many steps */
+            overflow-y: auto;
+            color: #eee; /* Light text for dark background */
+        }
+        /* Styling for each individual step item in the solution list */
+        .step-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #555; /* Lighter separator for dark background */
+        }
+        /* Remove border for the last step item */
+        .step-item:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+        /* Styling for the smaller cube SVG in solution steps */
+        .step-cube-svg {
+            min-width: 100px; /* Smaller size for step display */
+            min-height: 100px;
+            width: 100px;
+            height: 100px;
+            margin-right: 15px;
+            flex-shrink: 0; /* Prevent shrinking when content is long */
+            background-color: #000; /* Black background for small cube container */
+            border-radius: 5px; /* Smaller border radius for consistency */
+        }
+        /* General button styling */
+        button {
+            transition: all 0.2s ease-in-out; /* Smooth transitions for hover effects */
+            border-radius: 0.5rem; /* Rounded corners */
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Subtle shadow */
+        }
+        button:hover {
+            transform: scale(1.05); /* Slight scale up on hover */
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Enhanced shadow on hover */
+        }
+        /* Text color adjustments for dark background */
+        h1, h2 {
+            color: #fff; /* White text for headings */
+        }
+        .text-lg, .text-md {
+            color: #ddd; /* Lighter text for step descriptions */
+        }
+    </style>
+</head>
+<body>
+    <h1 class="text-3xl font-bold text-gray-800 mb-6">Rubik's Cube Solver</h1>
+
+    <!-- Main display area for the current cube state -->
+    <div id="mainCubeDisplay" class="cube-container">
+        <!-- Cube SVG will be rendered here by JavaScript -->
+    </div>
+
+    <!-- Control buttons for scramble, solve, and reset -->
+    <div class="flex flex-wrap justify-center gap-4 mt-6">
+        <button id="scrambleButton" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6">Scramble Cube</button>
+        <button id="solveButton" class="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6">Solve Cube</button>
+        <button id="resetButton" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-3 px-6">Reset Cube</button>
+    </div>
+
+    <!-- Manual rotation buttons -->
+    <div class="button-grid">
+        <button data-move="U" class="bg-purple-500 hover:bg-purple-600 text-white font-bold py-2 px-4">U</button>
+        <button data-move="U'" class="bg-purple-500 hover:bg-purple-600 text-white font-bold py-2 px-4">U'</button>
+        <button data-move="D" class="bg-purple-500 hover:bg-purple-600 text-white font-bold py-2 px-4">D</button>
+        <button data-move="D'" class="bg-purple-500 hover:bg-purple-600 text-white font-bold py-2 px-4">D'</button>
+        <button data-move="L" class="bg-purple-500 hover:bg-purple-600 text-white font-bold py-2 px-4">L</button>
+        <button data-move="L'" class="bg-purple-500 hover:bg-purple-600 text-white font-bold py-2 px-4">L'</button>
+        <button data-move="R" class="bg-purple-500 hover:bg-purple-600 text-white font-bold py-2 px-4">R</button>
+        <button data-move="R'" class="bg-purple-500 hover:bg-purple-600 text-white font-bold py-2 px-4">R'</button>
+        <button data-move="F" class="bg-purple-500 hover:bg-purple-600 text-white font-bold py-2 px-4">F</button>
+        <button data-move="F'" class="bg-purple-500 hover:bg-purple-600 text-white font-bold py-2 px-4">F'</button>
+        <button data-move="B" class="bg-purple-500 hover:bg-purple-600 text-white font-bold py-2 px-4">B</button>
+        <button data-move="B'" class="bg-purple-500 hover:bg-purple-600 text-white font-bold py-2 px-4">B'</button>
+    </div>
+
+    <!-- Area to display solution steps -->
+    <div class="solution-steps" id="solutionSteps">
+        <h2 class="text-xl font-semibold text-gray-700 mb-4">Solution Steps:</h2>
+        <div id="stepsList">
+            <!-- Solution steps will be dynamically added here -->
+        </div>
+    </div>
+
+    <script>
+        /**
+         * getCubeSvg(cubeString)
+         * Renders a 2D SVG representation of the Rubik's Cube.
+         * This function assumes the cubeString is a 54-character string representing the
+         * colors of the stickers in a specific order: U, L, F, R, B, D.
+         * Each face is represented by 9 characters.
+         *
+         * @param {string} cubeString - A 54-character string representing the cube's state.
+         * @returns {string} - An SVG string that can be inserted into the DOM.
+         */
+        function getCubeSvg(cubeString) {
+            // Define color mapping for SVG fill properties
+            const faceColors = {
+                'w': '#FFFFFF', // White
+                'y': '#FFFF00', // Yellow
+                'g': '#008000', // Green
+                'b': '#0000FF', // Blue
+                'r': '#FF0000', // Red
+                'o': '#FFA500'  // Orange
+            };
+
+            // Parse the cubeString into individual faces based on assumed order
+            // U: 0-8, L: 9-17, F: 18-26, R: 27-35, B: 36-44, D: 45-53
+            const faces = {
+                'U': cubeString.substring(0, 9),
+                'L': cubeString.substring(9, 18),
+                'F': cubeString.substring(18, 27),
+                'R': cubeString.substring(27, 36),
+                'B': cubeString.substring(36, 45),
+                'D': cubeString.substring(45, 54)
+            };
+
+            // Dimensions for individual stickers and faces
+            const stickerSize = 30;
+            const padding = 2; // Padding between stickers
+            const faceDim = stickerSize * 3 + padding * 2; // Total dimension of a 3x3 face
+
+            // Start SVG content
+            let svgContent = `
+                <svg width="${faceDim * 4}" height="${faceDim * 3}" viewBox="0 0 ${faceDim * 4} ${faceDim * 3}" xmlns="http://www.w3.org/2000/svg">
+            `;
+
+            /**
+             * Helper function to draw a single 3x3 face within the SVG.
+             * @param {string} faceData - 9-character string for the face's stickers.
+             * @param {number} startX - X coordinate for the top-left corner of the face.
+             * @param {number} startY - Y coordinate for the top-left corner of the face.
+             */
+            const drawFace = (faceData, startX, startY) => {
+                for (let i = 0; i < 9; i++) {
+                    const row = Math.floor(i / 3);
+                    const col = i % 3;
+                    const x = startX + col * (stickerSize + padding);
+                    const y = startY + row * (stickerSize + padding);
+                    const color = faceColors[faceData[i]] || '#CCCCCC'; // Default to grey if color not found
+                    svgContent += `<rect x="${x}" y="${y}" width="${stickerSize}" height="${stickerSize}" fill="${color}" rx="5" ry="5"/>`;
+                }
+            };
+
+            // Layout for a flattened cube net for display:
+            //       U
+            //   L   F   R   B
+            //       D
+            // This layout helps visualize the cube's state.
+
+            // U face (top middle)
+            drawFace(faces['U'], faceDim, 0);
+            // L face (middle left)
+            drawFace(faces['L'], 0, faceDim);
+            // F face (middle middle)
+            drawFace(faces['F'], faceDim, faceDim);
+            // R face (middle right)
+            drawFace(faces['R'], faceDim * 2, faceDim);
+            // B face (middle far right)
+            drawFace(faces['B'], faceDim * 3, faceDim);
+            // D face (bottom middle)
+            drawFace(faces['D'], faceDim, faceDim * 2);
+
+            svgContent += `</svg>`;
+            return svgContent;
+        }
+
+        /**
+         * RubiksCube Class
+         * Represents the state and logic of a 3x3 Rubik's Cube.
+         * Manages cube rotations and provides a basic solving algorithm.
+         */
+        class RubiksCube {
+            constructor() {
+                // Define standard colors for each face in a solved state
+                // U: white (w), L: orange (o), F: green (g), R: red (r), B: blue (b), D: yellow (y)
+                this.colors = {
+                    'U': 'w', 'L': 'o', 'F': 'g', 'R': 'r', 'B': 'b', 'D': 'y'
+                };
+
+                // The solved state of the cube as a 54-character string.
+                // Order: U (0-8), L (9-17), F (18-26), R (27-35), B (36-44), D (45-53)
+                this.solvedState =
+                    'wwwwwwwww' + // U face (white)
+                    'ooooooooo' + // L face (orange)
+                    'ggggggggg' + // F face (green)
+                    'rrrrrrrrr' + // R face (red)
+                    'bbbbbbbbb' + // B face (blue)
+                    'yyyyyyyyy'; // D face (yellow)
+
+                // Initialize the cube to its solved state as a mutable array of characters
+                this.cubeState = this.solvedState.split('');
+                // History of moves and cube states for solution display
+                this.history = [];
+            }
+
+            /**
+             * Returns the current cube state as a 54-character string.
+             * @returns {string} The current cube state.
+             */
+            getCubeString() {
+                return this.cubeState.join('');
+            }
+
+            /**
+             * Helper function to rotate a 3x3 face clockwise.
+             * @param {number[]} faceIndices - An array of 9 indices corresponding to the stickers on the face.
+             */
+            _rotateFaceClockwise(faceIndices) {
+                const temp = [];
+                // Store current sticker values in a temporary array based on clockwise rotation
+                temp[0] = this.cubeState[faceIndices[6]]; // bottom-left to top-left
+                temp[1] = this.cubeState[faceIndices[3]]; // middle-left to top-middle
+                temp[2] = this.cubeState[faceIndices[0]]; // top-left to top-right
+                temp[3] = this.cubeState[faceIndices[7]]; // bottom-middle to middle-left
+                temp[4] = this.cubeState[faceIndices[4]]; // center (stays in place)
+                temp[5] = this.cubeState[faceIndices[1]]; // top-middle to middle-right
+                temp[6] = this.cubeState[faceIndices[8]]; // bottom-right to bottom-left
+                temp[7] = this.cubeState[faceIndices[5]]; // middle-right to bottom-middle
+                temp[8] = this.cubeState[faceIndices[2]]; // top-right to bottom-right
+
+                // Apply the rotated values back to the cube state
+                for (let i = 0; i < 9; i++) {
+                    this.cubeState[faceIndices[i]] = temp[i];
+                }
+            }
+
+            /**
+             * Helper function to rotate a 3x3 face counter-clockwise.
+             * @param {number[]} faceIndices - An array of 9 indices corresponding to the stickers on the face.
+             */
+            _rotateFaceCounterClockwise(faceIndices) {
+                const temp = [];
+                // Store current sticker values in a temporary array based on counter-clockwise rotation
+                temp[0] = this.cubeState[faceIndices[2]]; // top-right to top-left
+                temp[1] = this.cubeState[faceIndices[5]]; // middle-right to top-middle
+                temp[2] = this.cubeState[faceIndices[8]]; // bottom-right to top-right
+                temp[3] = this.cubeState[faceIndices[1]]; // top-middle to middle-left
+                temp[4] = this.cubeState[faceIndices[4]]; // center (stays in place)
+                temp[5] = this.cubeState[faceIndices[7]]; // bottom-middle to middle-right
+                temp[6] = this.cubeState[faceIndices[0]]; // top-left to bottom-left
+                temp[7] = this.cubeState[faceIndices[3]]; // middle-left to bottom-middle
+                temp[8] = this.cubeState[faceIndices[6]]; // bottom-left to bottom-right
+
+                // Apply the rotated values back to the cube state
+                for (let i = 0; i < 9; i++) {
+                    this.cubeState[faceIndices[i]] = temp[i];
+                }
+            }
+
+            /**
+             * Helper function to swap 3 stickers between 4 different face sections (clockwise cycle).
+             * Used for edge/corner pieces that move between faces during a rotation.
+             * @param {number[]} indices1 - Array of 3 indices from the first face section.
+             * @param {number[]} indices2 - Array of 3 indices from the second face section.
+             * @param {number[]} indices3 - Array of 3 indices from the third face section.
+             * @param {number[]} indices4 - Array of 3 indices from the fourth face section.
+             */
+            _swapStickersClockwise(indices1, indices2, indices3, indices4) {
+                const state = this.cubeState;
+                const temp = [state[indices4[0]], state[indices4[1]], state[indices4[2]]]; // Store last set
+                // Move 3rd set to 4th, 2nd to 3rd, 1st to 2nd
+                for(let i = 0; i < 3; i++) {
+                    state[indices4[i]] = state[indices3[i]];
+                    state[indices3[i]] = state[indices2[i]];
+                    state[indices2[i]] = state[indices1[i]];
+                }
+                // Move stored 4th set to 1st
+                for(let i = 0; i < 3; i++) {
+                    state[indices1[i]] = temp[i];
+                }
+            }
+
+            /**
+             * Helper function to swap 3 stickers between 4 different face sections (counter-clockwise cycle).
+             * @param {number[]} indices1 - Array of 3 indices from the first face section.
+             * @param {number[]} indices2 - Array of 3 indices from the second face section.
+             * @param {number[]} indices3 - Array of 3 indices from the third face section.
+             * @param {number[]} indices4 - Array of 3 indices from the fourth face section.
+             */
+            _swapStickersCounterClockwise(indices1, indices2, indices3, indices4) {
+                const state = this.cubeState;
+                const temp = [state[indices1[0]], state[indices1[1]], state[indices1[2]]]; // Store first set
+                // Move 2nd set to 1st, 3rd to 2nd, 4th to 3rd
+                for(let i = 0; i < 3; i++) {
+                    state[indices1[i]] = state[indices2[i]];
+                    state[indices2[i]] = state[indices3[i]];
+                    state[indices3[i]] = state[indices4[i]];
+                }
+                // Move stored 1st set to 4th
+                for(let i = 0; i < 3; i++) {
+                    state[indices4[i]] = temp[i];
+                }
+            }
+
+            /**
+             * Performs a specified rotation on the cube.
+             * @param {string} move - The move to perform (e.g., 'U', 'R'', 'F').
+             */
+            rotate(move) {
+                // Store the cube state before the move for history tracking
+                this.history.push({ move: move, state: [...this.cubeState] });
+                const state = this.cubeState;
+
+                // Define sticker indices for each face for clarity
+                // U: 0-8, L: 9-17, F: 18-26, R: 27-35, B: 36-44, D: 45-53
+
+                switch (move) {
+                    case 'U': // Up face clockwise
+                        this._rotateFaceClockwise([0, 1, 2, 3, 4, 5, 6, 7, 8]); // U face itself
+                        this._swapStickersClockwise(
+                            [18, 19, 20], // F top row
+                            [27, 28, 29], // R top row
+                            [36, 37, 38], // B top row
+                            [9, 10, 11]   // L top row
+                        );
+                        break;
+                    case 'U\'': // Up face counter-clockwise
+                        this._rotateFaceCounterClockwise([0, 1, 2, 3, 4, 5, 6, 7, 8]); // U face itself
+                        this._swapStickersCounterClockwise(
+                            [18, 19, 20], // F top row
+                            [27, 28, 29], // R top row
+                            [36, 37, 38], // B top row
+                            [9, 10, 11]   // L top row
+                        );
+                        break;
+                    case 'D': // Down face clockwise
+                        this._rotateFaceClockwise([45, 46, 47, 48, 49, 50, 51, 52, 53]); // D face itself
+                        this._swapStickersClockwise(
+                            [24, 25, 26], // F bottom row
+                            [33, 34, 35], // R bottom row
+                            [42, 43, 44], // B bottom row
+                            [15, 16, 17]   // L bottom row
+                        );
+                        break;
+                    case 'D\'': // Down face counter-clockwise
+                        this._rotateFaceCounterClockwise([45, 46, 47, 48, 49, 50, 51, 52, 53]); // D face itself
+                        this._swapStickersCounterClockwise(
+                            [24, 25, 26], // F bottom row
+                            [33, 34, 35], // R bottom row
+                            [42, 43, 44], // B bottom row
+                            [15, 16, 17]   // L bottom row
+                        );
+                        break;
+                    case 'L': // Left face clockwise
+                        this._rotateFaceClockwise([9, 10, 11, 12, 13, 14, 15, 16, 17]); // L face itself
+                        this._swapStickersClockwise(
+                            [0, 3, 6],   // U left column (U0, U3, U6)
+                            [18, 21, 24],  // F left column (F0, F3, F6)
+                            [45, 48, 51], // D left column (D0, D3, D6)
+                            [42, 39, 36]  // B right column (B6, B3, B0 - reversed order for correct cycle)
+                        );
+                        break;
+                    case 'L\'': // Left face counter-clockwise
+                        this._rotateFaceCounterClockwise([9, 10, 11, 12, 13, 14, 15, 16, 17]); // L face itself
+                        this._swapStickersCounterClockwise(
+                            [0, 3, 6],   // U left column
+                            [18, 21, 24],  // F left column
+                            [45, 48, 51], // D left column
+                            [42, 39, 36]  // B right column (reversed)
+                        );
+                        break;
+                    case 'R': // Right face clockwise
+                        this._rotateFaceClockwise([27, 28, 29, 30, 31, 32, 33, 34, 35]); // R face itself
+                        this._swapStickersClockwise(
+                            [2, 5, 8],   // U right column (U2, U5, U8)
+                            [38, 41, 44], // B left column (B2, B5, B8 - reversed for correct cycle)
+                            [53, 50, 47], // D right column (D8, D5, D2 - reversed for correct cycle)
+                            [26, 23, 20]  // F right column (F8, F5, F2 - reversed for correct cycle)
+                        );
+                        break;
+                    case 'R\'': // Right face counter-clockwise
+                        this._rotateFaceCounterClockwise([27, 28, 29, 30, 31, 32, 33, 34, 35]); // R face itself
+                        this._swapStickersCounterClockwise(
+                            [2, 5, 8],   // U right column
+                            [38, 41, 44], // B left column (reversed)
+                            [53, 50, 47], // D right column (reversed)
+                            [26, 23, 20]  // F right column (reversed)
+                        );
+                        break;
+                    case 'F': // Front face clockwise
+                        this._rotateFaceClockwise([18, 19, 20, 21, 22, 23, 24, 25, 26]); // F face itself
+                        this._swapStickersClockwise(
+                            [6, 7, 8],   // U bottom row (U6, U7, U8)
+                            [27, 30, 33], // R left column (R0, R3, R6)
+                            [53, 52, 51], // D top row (D8, D7, D6 - reversed)
+                            [17, 14, 11]  // L right column (L8, L5, L2 - reversed)
+                        );
+                        break;
+                    case 'F\'': // Front face counter-clockwise
+                        this._rotateFaceCounterClockwise([18, 19, 20, 21, 22, 23, 24, 25, 26]); // F face itself
+                        this._swapStickersCounterClockwise(
+                            [6, 7, 8],   // U bottom row
+                            [27, 30, 33], // R left column
+                            [53, 52, 51], // D top row (reversed)
+                            [17, 14, 11]  // L right column (reversed)
+                        );
+                        break;
+                    case 'B': // Back face clockwise
+                        this._rotateFaceClockwise([36, 37, 38, 39, 40, 41, 42, 43, 44]); // B face itself
+                        this._swapStickersClockwise(
+                            [2, 1, 0],   // U top row (U2, U1, U0 - reversed)
+                            [9, 12, 15],  // L left column (L0, L3, L6)
+                            [45, 46, 47], // D bottom row (D0, D1, D2)
+                            [35, 32, 29]  // R right column (R8, R5, R2 - reversed)
+                        );
+                        break;
+                    case 'B\'': // Back face counter-clockwise
+                        this._rotateFaceCounterClockwise([36, 37, 38, 39, 40, 41, 42, 43, 44]); // B face itself
+                        this._swapStickersCounterClockwise(
+                            [2, 1, 0],   // U top row (reversed)
+                            [9, 12, 15],  // L left column
+                            [45, 46, 47], // D bottom row
+                            [35, 32, 29]  // R right column (reversed)
+                        );
+                        break;
+                    default:
+                        console.warn('Unknown move:', move);
+                }
+            }
+
+            /**
+             * Checks if the cube is in a solved state.
+             * @returns {boolean} True if the cube is solved, false otherwise.
+             */
+            isSolved() {
+                return this.cubeState.join('') === this.solvedState;
+            }
+
+            /**
+             * Scrambles the cube by applying a series of random moves.
+             * @param {number} numMoves - The number of random moves to apply.
+             */
+            scramble(numMoves = 25) {
+                this.history = []; // Clear history before scrambling
+                const moves = ['U', 'U\'', 'D', 'D\'', 'L', 'L\'', 'R', 'R\'', 'F', 'F\'', 'B', 'B\''];
+                for (let i = 0; i < numMoves; i++) {
+                    const randomMove = moves[Math.floor(Math.random() * moves.length)];
+                    this.rotate(randomMove);
+                }
+                this.history = []; // Clear history after scrambling, as these are not solution steps
+            }
+
+            /**
+             * Resets the cube to its initial solved state.
+             */
+            reset() {
+                this.cubeState = this.solvedState.split('');
+                this.history = [];
+            }
+
+            /**
+             * Initiates the solving algorithm.
+             * This implementation uses a simplified layer-by-layer (beginner's) method.
+             * It prioritizes functionality over finding the optimal solution.
+             * @returns {Array} The history of steps taken to solve the cube.
+             */
+            solve() {
+                this.history = []; // Clear previous history for a new solution attempt
+                this.addStep('Initial Scrambled State'); // Add initial state to history
+
+                // Step 1: Solve the White Cross on the Down (Yellow) face
+                this._solveWhiteCross();
+                this.addStep('White Cross Solved');
+
+                // Step 2: Solve the White Corners on the Down (Yellow) face
+                this._solveWhiteCorners();
+                this.addStep('White Corners Solved');
+
+                // Step 3: Solve the Middle Layer Edges
+                this._solveMiddleLayer();
+                this.addStep('Middle Layer Solved');
+
+                // Step 4: Orient Last Layer Edges (Form the Yellow Cross on the Up face)
+                this._orientLastLayerEdges();
+                this.addStep('Yellow Cross Solved');
+
+                // Step 5: Permute Last Layer Corners (Place yellow corners in correct positions)
+                this._permuteLastLayerCorners();
+                this.addStep('Yellow Corners Permuted');
+
+                // Step 6: Orient Last Layer Corners (Get all yellow stickers on the Up face)
+                this._orientLastLayerCorners();
+                this.addStep('Yellow Corners Oriented');
+
+                // Step 7: Permute Last Layer Edges (Place yellow edges in correct positions)
+                this._permuteLastLayerEdges();
+                this.addStep('Yellow Edges Permuted');
+
+                // Final check and message
+                if (this.isSolved()) {
+                    this.addStep('Cube Solved!');
+                    console.log("Cube solved successfully!");
+                } else {
+                    this.addStep('Solver Finished (Cube not fully solved)');
+                    console.error("Solver finished, but cube is not fully solved. This can happen with simplified algorithms.");
+                }
+                return this.history;
+            }
+
+            /**
+             * Adds a step to the solution history.
+             * @param {string} description - A description of the step.
+             * @param {string} [move=''] - The move applied in this step (optional).
+             */
+            addStep(description, move = '') {
+                this.history.push({
+                    move: move,
+                    description: description,
+                    state: [...this.cubeState] // Deep copy of the current cube state
+                });
+            }
+
+            /**
+             * Applies a sequence of moves to the cube.
+             * @param {string} moves - A space-separated string of moves (e.g., "R U R'").
+             */
+            _applyMoves(moves) {
+                moves.split(' ').forEach(move => {
+                    if (move) this.rotate(move);
+                });
+            }
+
+            /**
+             * Gets the color of the sticker at a given index.
+             * @param {number} index - The index of the sticker.
+             * @returns {string} The color character of the sticker.
+             */
+            _get(index) {
+                return this.cubeState[index];
+            }
+
+            /**
+             * Checks if a specific sticker (color) is at a given index.
+             * @param {number} index - The index of the sticker.
+             * @param {string} color - The color to check for.
+             * @returns {boolean} True if the sticker matches the color, false otherwise.
+             */
+            _isSticker(index, color) {
+                return this.cubeState[index] === color;
+            }
+
+            // --- Solving Algorithm Core Steps ---
+
+            /**
+             * Step 1: Solves the White Cross on the Down (Yellow) face.
+             * This involves bringing the four white edge pieces (w-g, w-r, w-b, w-o)
+             * to their correct positions and orientations on the D face, aligning
+             * them with their respective center colors.
+             */
+            _solveWhiteCross() {
+                const white = 'w';
+                const green = 'g'; // F face center
+                const red = 'r';   // R face center
+                const blue = 'b';  // B face center
+                const orange = 'o';// L face center
+
+                // Helper to check if a specific white edge is correctly placed and oriented
+                const isEdgeSolved = (whiteIdx, otherIdx, otherColor) => {
+                    return this._get(whiteIdx) === white && this._get(otherIdx) === otherColor;
+                };
+
+                let maxAttempts = 100; // Safety counter to prevent infinite loops
+                while (maxAttempts > 0) {
+                    // Check if all 4 white cross edges are solved
+                    let solvedCount = 0;
+                    if (isEdgeSolved(46, 25, green)) solvedCount++; // D-F edge (D1, F7)
+                    if (isEdgeSolved(50, 34, red)) solvedCount++;   // D-R edge (D5, R7)
+                    if (isEdgeSolved(52, 43, blue)) solvedCount++;  // D-B edge (D7, B7)
+                    if (isEdgeSolved(48, 16, orange)) solvedCount++; // D-L edge (D3, L7)
+
+                    if (solvedCount === 4) break; // All edges are solved, exit loop
+
+                    let movedThisIteration = false;
+
+                    // Prioritize edges in the U layer (top layer) or middle layer
+                    // U-F edge (U1, F1) -> (1, 19)
+                    if (!isEdgeSolved(46, 25, green) && ((this._get(1) === white && this._get(19) === green) || (this._get(1) === green && this._get(19) === white))) {
+                        // If white is on U1 and green on F1: F F
+                        if (this._get(1) === white) { this._applyMoves('F F'); this.addStep('Solving F-D edge (U1 white)', 'F F'); }
+                        // If green is on U1 and white on F1: U' L' U L F F (or simpler: F U R U' R' F')
+                        else { this._applyMoves('U F F'); this.addStep('Solving F-D edge (F1 white)', 'U F F'); }
+                        movedThisIteration = true;
+                    }
+                    // U-R edge (U5, R1) -> (5, 28)
+                    else if (!isEdgeSolved(50, 34, red) && ((this._get(5) === white && this._get(28) === red) || (this._get(5) === red && this._get(28) === white))) {
+                        if (this._get(5) === white) { this._applyMoves('R R'); this.addStep('Solving R-D edge (U5 white)', 'R R'); }
+                        else { this._applyMoves('U R R'); this.addStep('Solving R-D edge (R1 white)', 'U R R'); }
+                        movedThisIteration = true;
+                    }
+                    // U-B edge (U7, B1) -> (7, 37)
+                    else if (!isEdgeSolved(52, 43, blue) && ((this._get(7) === white && this._get(37) === blue) || (this._get(7) === blue && this._get(37) === white))) {
+                        if (this._get(7) === white) { this._applyMoves('B B'); this.addStep('Solving B-D edge (U7 white)', 'B B'); }
+                        else { this._applyMoves('U B B'); this.addStep('Solving B-D edge (B1 white)', 'U B B'); }
+                        movedThisIteration = true;
+                    }
+                    // U-L edge (U3, L1) -> (3, 10)
+                    else if (!isEdgeSolved(48, 16, orange) && ((this._get(3) === white && this._get(10) === orange) || (this._get(3) === orange && this._get(10) === white))) {
+                        if (this._get(3) === white) { this._applyMoves('L L'); this.addStep('Solving L-D edge (U3 white)', 'L L'); }
+                        else { this._applyMoves('U L L'); this.addStep('Solving L-D edge (L1 white)', 'U L L'); }
+                        movedThisIteration = true;
+                    }
+
+                    // If no edge was moved from U layer, check middle layer or D layer for mispositioned/misoriented edges
+                    if (!movedThisIteration) {
+                        // Check D-F edge (D1, F7) -> (46, 25)
+                        if (!isEdgeSolved(46, 25, green) && (this._get(46) === white || this._get(25) === white)) {
+                            this._applyMoves('F U F\''); // Bring it to U layer
+                            this.addStep('Extracting misoriented F-D edge', 'F U F\'');
+                            movedThisIteration = true;
+                        }
+                        // D-R edge (D5, R7) -> (50, 34)
+                        else if (!isEdgeSolved(50, 34, red) && (this._get(50) === white || this._get(34) === white)) {
+                            this._applyMoves('R U R\'');
+                            this.addStep('Extracting misoriented R-D edge', 'R U R\'');
+                            movedThisIteration = true;
+                        }
+                        // D-B edge (D7, B7) -> (52, 43)
+                        else if (!isEdgeSolved(52, 43, blue) && (this._get(52) === white || this._get(43) === white)) {
+                            this._applyMoves('B U B\'');
+                            this.addStep('Extracting misoriented B-D edge', 'B U B\'');
+                            movedThisIteration = true;
+                        }
+                        // D-L edge (D3, L7) -> (48, 16)
+                        else if (!isEdgeSolved(48, 16, orange) && (this._get(48) === white || this._get(16) === white)) {
+                            this._applyMoves('L U L\'');
+                            this.addStep('Extracting misoriented L-D edge', 'L U L\'');
+                            movedThisIteration = true;
+                        }
+                    }
+
+                    // If still nothing moved, rotate U to bring new pieces into view
+                    if (!movedThisIteration) {
+                        this._applyMoves('U');
+                        this.addStep('Searching for white edge (U-face rotation)', 'U');
+                    }
+                    maxAttempts--;
+                }
+            }
+
+            /**
+             * Step 2: Solves the White Corners on the Down (Yellow) face.
+             * This involves bringing the four white corner pieces (w-g-r, w-r-b, w-b-o, w-o-g)
+             * to their correct positions and orientations on the D face.
+             */
+            _solveWhiteCorners() {
+                const white = 'w';
+                const green = 'g';
+                const red = 'r';
+                const blue = 'b';
+                const orange = 'o';
+
+                // Helper to check if a corner is correctly placed and oriented
+                const isCornerSolved = (dIdx, face1Idx, face2Idx, c1, c2) => {
+                    // Check if the white sticker is on the D face and other two colors match
+                    return this._get(dIdx) === white &&
+                           ((this._get(face1Idx) === c1 && this._get(face2Idx) === c2) ||
+                            (this._get(face1Idx) === c2 && this._get(face2Idx) === c1));
+                };
+
+                // Define target positions for corners (D face sticker, Face1 sticker, Face2 sticker)
+                const targetCorners = {
+                    'DFR': { d: 53, f: 26, r: 33, colors: [green, red] },   // D-F-R corner
+                    'DRB': { d: 51, r: 35, b: 42, colors: [red, blue] },    // D-R-B corner
+                    'DBL': { d: 45, b: 44, l: 15, colors: [blue, orange] }, // D-B-L corner
+                    'DLF': { d: 47, l: 17, f: 24, colors: [orange, green] } // D-L-F corner
+                };
+
+                let maxAttempts = 100;
+                while (maxAttempts > 0) {
+                    let solvedCount = 0;
+                    if (isCornerSolved(targetCorners.DFR.d, targetCorners.DFR.f, targetCorners.DFR.r, green, red)) solvedCount++;
+                    if (isCornerSolved(targetCorners.DRB.d, targetCorners.DRB.r, targetCorners.DRB.b, red, blue)) solvedCount++;
+                    if (isCornerSolved(targetCorners.DBL.d, targetCorners.DBL.b, targetCorners.DBL.l, blue, orange)) solvedCount++;
+                    if (isCornerSolved(targetCorners.DLF.d, targetCorners.DLF.l, targetCorners.DLF.f, orange, green)) solvedCount++;
+
+                    if (solvedCount === 4) break; // All corners solved
+
+                    let movedThisIteration = false;
+
+                    // Check U layer corners and bring them down
+                    // U-F-R corner (U8, F2, R0) -> (8, 20, 27)
+                    const checkAndSolveCorner = (uIdx, fIdx, rIdx, lIdx, bIdx, targetDIdx, targetFIdx, targetS2Idx, targetC1, targetC2, slotName, extractMove) => {
+                        const currentColors = [this._get(uIdx), this._get(fIdx), this._get(rIdx) || this._get(lIdx) || this._get(bIdx)].filter(c => c !== undefined);
+                        const requiredColors = [white, targetC1, targetC2];
+
+                        // Check if this is the target corner piece (regardless of orientation)
+                        if (requiredColors.every(c => currentColors.includes(c)) && currentColors.length === 3) {
+                            if (!isCornerSolved(targetDIdx, targetFIdx, targetS2Idx, targetC1, targetC2)) {
+                                // Rotate U until the corner is above its target slot (at U-F-R position for insertion)
+                                while (!([this._get(8), this._get(20), this._get(27)].every(c => requiredColors.includes(c)) && [this._get(8), this._get(20), this._get(27)].length === 3)) {
+                                    this._applyMoves('U');
+                                    this.addStep(`Aligning ${slotName} corner to insertion slot`, 'U');
+                                }
+                                // Apply R U R' U' until white sticker is on D face and corner is solved
+                                while (!isCornerSolved(targetDIdx, targetFIdx, targetS2Idx, targetC1, targetC2)) {
+                                    this._applyMoves('R U R\' U\'');
+                                    this.addStep(`Inserting ${slotName} corner`, 'R U R\' U\'');
+                                }
+                                return true; // Corner solved
+                            }
+                        }
+                        return false;
+                    };
+
+                    // Try to solve each corner
+                    if (checkAndSolveCorner(8, 20, 27, undefined, undefined, targetCorners.DFR.d, targetCorners.DFR.f, targetCorners.DFR.r, green, red, 'DFR', 'R U R\'')) movedThisIteration = true;
+                    else if (checkAndSolveCorner(2, undefined, 29, undefined, 36, targetCorners.DRB.d, targetCorners.DRB.r, targetCorners.DRB.b, red, blue, 'DRB', 'R U R\'')) movedThisIteration = true;
+                    else if (checkAndSolveCorner(0, undefined, undefined, 9, 38, targetCorners.DBL.d, targetCorners.DBL.b, targetCorners.DBL.l, blue, orange, 'DBL', 'R U R\'')) movedThisIteration = true;
+                    else if (checkAndSolveCorner(6, 18, undefined, 11, undefined, targetCorners.DLF.d, targetCorners.DLF.l, targetCorners.DLF.f, orange, green, 'DLF', 'R U R\'')) movedThisIteration = true;
+
+
+                    // If no corner was moved from U layer, check D layer for mispositioned/misoriented corners
+                    if (!movedThisIteration) {
+                        // D-F-R corner (53, 26, 33)
+                        const currentColorsDFR = [this._get(53), this._get(26), this._get(33)].sort().join('');
+                        const targetColorsDFR = [white, green, red].sort().join('');
+                        if (currentColorsDFR === targetColorsDFR && !isCornerSolved(targetCorners.DFR.d, targetCorners.DFR.f, targetCorners.DFR.r, green, red)) {
+                            this._applyMoves('R U R\''); // Extract to U layer
+                            this.addStep('Extracting misoriented DFR corner', 'R U R\'');
+                            movedThisIteration = true;
+                        }
+                        // D-R-B corner (51, 35, 42)
+                        else if (currentColorsDFR !== targetColorsDFR && [this._get(51), this._get(35), this._get(42)].sort().join('') === [white, red, blue].sort().join('') && !isCornerSolved(targetCorners.DRB.d, targetCorners.DRB.r, targetCorners.DRB.b, red, blue)) {
+                            this._applyMoves('B U B\''); // Extract to U layer
+                            this.addStep('Extracting misoriented DRB corner', 'B U B\'');
+                            movedThisIteration = true;
+                        }
+                        // D-B-L corner (45, 44, 15)
+                        else if (currentColorsDFR !== targetColorsDFR && [this._get(45), this._get(44), this._get(15)].sort().join('') === [white, blue, orange].sort().join('') && !isCornerSolved(targetCorners.DBL.d, targetCorners.DBL.b, targetCorners.DBL.l, blue, orange)) {
+                            this._applyMoves('L U L\''); // Extract to U layer
+                            this.addStep('Extracting misoriented DBL corner', 'L U L\'');
+                            movedThisIteration = true;
+                        }
+                        // D-L-F corner (47, 17, 24)
+                        else if (currentColorsDFR !== targetColorsDFR && [this._get(47), this._get(17), this._get(24)].sort().join('') === [white, orange, green].sort().join('') && !isCornerSolved(targetCorners.DLF.d, targetCorners.DLF.l, targetCorners.DLF.f, orange, green)) {
+                            this._applyMoves('F U F\''); // Extract to U layer
+                            this.addStep('Extracting misoriented DLF corner', 'F U F\'');
+                            movedThisIteration = true;
+                        }
+                    }
+
+                    // If still nothing moved, rotate U to bring new pieces into view
+                    if (!movedThisIteration) {
+                        this._applyMoves('U');
+                        this.addStep('Searching for white corner (U-face rotation)', 'U');
+                    }
+                    maxAttempts--;
+                }
+            }
+
+            /**
+             * Step 3: Solves the Middle Layer Edges.
+             * This involves placing the four middle layer edge pieces (g-r, r-b, b-o, o-g)
+             * into their correct positions and orientations.
+             */
+            _solveMiddleLayer() {
+                const yellow = 'y'; // Center of U face (top)
+                const green = 'g';
+                const red = 'r';
+                const blue = 'b';
+                const orange = 'o';
+
+                // Helper to check if a middle layer edge is correctly placed and oriented
+                const isEdgeSolved = (face1Idx, face2Idx, c1, c2) => {
+                    return (this._get(face1Idx) === c1 && this._get(face2Idx) === c2);
+                };
+
+                let maxAttempts = 100;
+                while (maxAttempts > 0) {
+                    let solvedCount = 0;
+                    if (isEdgeSolved(23, 31, green, red)) solvedCount++; // F-R edge (F5, R3)
+                    if (isEdgeSolved(32, 41, red, blue)) solvedCount++;   // R-B edge (R5, B3)
+                    if (isEdgeSolved(40, 12, blue, orange)) solvedCount++; // B-L edge (B5, L3)
+                    if (isEdgeSolved(14, 21, orange, green)) solvedCount++; // L-F edge (L5, F3)
+
+                    if (solvedCount === 4) break; // All middle layer edges solved
+
+                    let movedThisIteration = false;
+
+                    // Check U layer edges (U1, U3, U5, U7) and their adjacent face stickers
+                    // U-F edge (U1, F1) -> (1, 19)
+                    if (this._get(1) !== yellow && this._get(19) !== yellow) { // Not a yellow edge (candidate for middle layer)
+                        if (this._get(19) === green && this._get(1) === red) { // F-R edge, U1=red, F1=green
+                            this._applyMoves('U R U\' R\' U\' F\' U F'); // Algorithm to insert to F-R slot
+                            this.addStep('Inserting F-R edge (U1-red, F1-green)', 'U R U\' R\' U\' F\' U F');
+                            movedThisIteration = true;
+                        } else if (this._get(19) === green && this._get(1) === orange) { // F-L edge, U1=orange, F1=green
+                            this._applyMoves('U\' L\' U L U F U\' F\''); // Algorithm to insert to F-L slot
+                            this.addStep('Inserting F-L edge (U1-orange, F1-green)', 'U\' L\' U L U F U\' F\'');
+                            movedThisIteration = true;
+                        }
+                    }
+
+                    // U-R edge (U5, R1) -> (5, 28)
+                    if (!movedThisIteration && this._get(5) !== yellow && this._get(28) !== yellow) {
+                        if (this._get(28) === red && this._get(5) === blue) { // R-B edge, U5=blue, R1=red
+                            this._applyMoves('U B U\' B\' U\' R\' U R');
+                            this.addStep('Inserting R-B edge (U5-blue, R1-red)', 'U B U\' B\' U\' R\' U R');
+                            movedThisIteration = true;
+                        } else if (this._get(28) === red && this._get(5) === green) { // R-F edge, U5=green, R1=red
+                            this._applyMoves('U\' F\' U F U R U\' R\'');
+                            this.addStep('Inserting R-F edge (U5-green, R1-red)', 'U\' F\' U F U R U\' R\'');
+                            movedThisIteration = true;
+                        }
+                    }
+
+                    // U-B edge (U7, B1) -> (7, 37)
+                    if (!movedThisIteration && this._get(7) !== yellow && this._get(37) !== yellow) {
+                        if (this._get(37) === blue && this._get(7) === orange) { // B-L edge, U7=orange, B1=blue
+                            this._applyMoves('U L U\' L\' U\' B\' U B');
+                            this.addStep('Inserting B-L edge (U7-orange, B1-blue)', 'U L U\' L\' U\' B\' U B');
+                            movedThisIteration = true;
+                        } else if (this._get(37) === blue && this._get(7) === red) { // B-R edge, U7=red, B1=blue
+                            this._applyMoves('U\' R\' U R U B U\' B\'');
+                            this.addStep('Inserting B-R edge (U7-red, B1-blue)', 'U\' R\' U R U B U\' B\'');
+                            movedThisIteration = true;
+                        }
+                    }
+
+                    // U-L edge (U3, L1) -> (3, 10)
+                    if (!movedThisIteration && this._get(3) !== yellow && this._get(10) !== yellow) {
+                        if (this._get(10) === orange && this._get(3) === green) { // L-F edge, U3=green, L1=orange
+                            this._applyMoves('U F U\' F\' U\' L\' U L');
+                            this.addStep('Inserting L-F edge (U3-green, L1-orange)', 'U F U\' F\' U\' L\' U L');
+                            movedThisIteration = true;
+                        } else if (this._get(10) === orange && this._get(3) === blue) { // L-B edge, U3=blue, L1=orange
+                            this._applyMoves('U\' B\' U B U L U\' L\'');
+                            this.addStep('Inserting L-B edge (U3-blue, L1-orange)', 'U\' B\' U B U L U\' L\'');
+                            movedThisIteration = true;
+                        }
+                    }
+
+                    // If no edge was moved from U layer, check middle layer for mispositioned/misoriented edges and extract them
+                    if (!movedThisIteration) {
+                        // F-R edge (23, 31)
+                        if ((this._get(23) !== green || this._get(31) !== red) && (this._get(23) !== yellow && this._get(31) !== yellow)) {
+                            this._applyMoves('R U R\' U\' F\' U F'); // Extract to U layer
+                            this.addStep('Extracting misoriented F-R edge', 'R U R\' U\' F\' U F');
+                            movedThisIteration = true;
+                        }
+                        // R-B edge (32, 41)
+                        else if ((this._get(32) !== red || this._get(41) !== blue) && (this._get(32) !== yellow && this._get(41) !== yellow)) {
+                            this._applyMoves('B U B\' U\' R\' U R'); // Extract to U layer
+                            this.addStep('Extracting misoriented R-B edge', 'B U B\' U\' R\' U R');
+                            movedThisIteration = true;
+                        }
+                        // B-L edge (40, 12)
+                        else if ((this._get(40) !== blue || this._get(12) !== orange) && (this._get(40) !== yellow && this._get(12) !== yellow)) {
+                            this._applyMoves('L U L\' U\' B\' U B'); // Extract to U layer
+                            this.addStep('Extracting misoriented B-L edge', 'L U L\' U\' B\' U B');
+                            movedThisIteration = true;
+                        }
+                        // L-F edge (14, 21)
+                        else if ((this._get(14) !== orange || this._get(21) !== green) && (this._get(14) !== yellow && this._get(21) !== yellow)) {
+                            this._applyMoves('F U F\' U\' L\' U L'); // Extract to U layer
+                            this.addStep('Extracting misoriented L-F edge', 'F U F\' U\' L\' U L');
+                            movedThisIteration = true;
+                        }
+                    }
+
+                    // If no specific edge was handled, rotate U to bring a new edge into view
+                    if (!movedThisIteration) {
+                        this._applyMoves('U');
+                        this.addStep('Searching for middle layer edge (U-face rotation)', 'U');
+                    }
+                    maxAttempts--;
+                }
+            }
+
+            /**
+             * Step 4: Orients Last Layer Edges (Forms the Yellow Cross).
+             * This step aims to get all four yellow edge stickers (U1, U3, U5, U7)
+             * to face upwards on the Up (Yellow) face.
+             */
+            _orientLastLayerEdges() {
+                const yellow = 'y';
+                let maxAttempts = 10; // Should converge quickly
+
+                while (maxAttempts > 0) {
+                    const u1 = this._get(1); // U-F edge
+                    const u3 = this._get(3); // U-L edge
+                    const u5 = this._get(5); // U-R edge
+                    const u7 = this._get(7); // U-B edge
+
+                    // Check if the yellow cross is already formed
+                    if (u1 === yellow && u3 === yellow && u5 === yellow && u7 === yellow) {
+                        break;
+                    }
+
+                    // Cases: Dot, L-shape, Line
+                    // Algorithm: F R U R' U' F'
+
+                    // Case: Line (two opposite yellow edges are oriented)
+                    // If U1 and U7 are yellow (horizontal line), or U3 and U5 are yellow (vertical line)
+                    if ((u1 === yellow && u7 === yellow) || (u3 === yellow && u5 === yellow)) {
+                        // If it's a vertical line (U3, U5), rotate U to make it horizontal (U1, U7)
+                        if (u3 === yellow && u5 === yellow) {
+                            this._applyMoves('U'); // Rotate U to make it a horizontal line (U1, U7)
+                            this.addStep('Orienting for Yellow Cross (Line alignment)', 'U');
+                        }
+                        this._applyMoves('F R U R\' U\' F\''); // Apply algorithm
+                        this.addStep('Forming Yellow Cross (Line case)', 'F R U R\' U\' F\'');
+                        break; // Should be solved after this
+                    }
+                    // Case: L-shape (two adjacent yellow edges are oriented)
+                    // Example: U1 and U3 are yellow. Rotate U to make them U7 and U3 (9 and 12 o'clock position)
+                    if ((u1 === yellow && u3 === yellow) || (u1 === yellow && u5 === yellow) || (u5 === yellow && u7 === yellow) || (u7 === yellow && u3 === yellow)) {
+                        // Rotate U until the L-shape is at the '7' and '9' o'clock positions (U7 and U3)
+                        while (!(this._get(3) === yellow && this._get(7) === yellow)) {
+                            this._applyMoves('U');
+                            this.addStep('Orienting for Yellow Cross (L-shape alignment)', 'U');
+                        }
+                        this._applyMoves('F U R U\' R\' F\''); // Apply algorithm
+                        this.addStep('Forming Yellow Cross (L-shape case)', 'F U R U\' R\' F\'');
+                        break; // Should be solved after this
+                    }
+
+                    // Case: Dot (no yellow edges oriented)
+                    // Apply the algorithm once to get an L-shape or a line
+                    this._applyMoves('F R U R\' U\' F\'');
+                    this.addStep('Forming Yellow Cross (Dot case)', 'F R U R\' U\' F\'');
+                    maxAttempts--;
+                }
+            }
+
+            /**
+             * Step 5: Permutes Last Layer Corners (Places yellow corners in correct positions).
+             * This step ensures that each yellow corner piece is in its correct slot,
+             * even if its yellow sticker is not yet facing upwards.
+             */
+            _permuteLastLayerCorners() {
+                const yellow = 'y';
+                const green = 'g';
+                const red = 'r';
+                const blue = 'b';
+                const orange = 'o';
+
+                // Helper to check if a corner piece is in its correct physical location
+                // (regardless of its current orientation)
+                const isCornerInPlace = (uIdx, face1Idx, face2Idx, c1, c2) => {
+                    const colorsAtPos = [this._get(uIdx), this._get(face1Idx), this._get(face2Idx)].sort().join('');
+                    const targetColors = [yellow, c1, c2].sort().join('');
+                    return colorsAtPos === targetColors;
+                };
+
+                let maxAttempts = 10; // Safety counter
+                while (maxAttempts > 0) {
+                    let correctCorners = 0;
+                    let correctCornerUIdx = -1; // Stores the U index of a correctly placed corner
+
+                    // Check each corner slot for the correct piece
+                    // U-F-R (8, 20, 27) for yellow, green, red
+                    if (isCornerInPlace(8, 20, 27, green, red)) { correctCorners++; correctCornerUIdx = 8; }
+                    // U-R-B (2, 29, 36) for yellow, red, blue
+                    if (isCornerInPlace(2, 29, 36, red, blue)) { correctCorners++; correctCornerUIdx = 2; }
+                    // U-B-L (0, 38, 9) for yellow, blue, orange
+                    if (isCornerInPlace(0, 38, 9, blue, orange)) { correctCorners++; correctCornerUIdx = 0; }
+                    // U-L-F (6, 11, 18) for yellow, orange, green
+                    if (isCornerInPlace(6, 11, 18, orange, green)) { correctCorners++; correctCornerUIdx = 6; }
+
+                    if (correctCorners === 4) break; // All corners are in place
+
+                    if (correctCorners === 1) {
+                        // If one corner is correct, rotate U until it is at the U-F-R position (index 8)
+                        while (!isCornerInPlace(8, 20, 27, green, red)) {
+                            this._applyMoves('U');
+                            this.addStep('Aligning correct corner to U-F-R slot', 'U');
+                        }
+                        // Apply the A-Perm algorithm (cycles 3 corners clockwise)
+                        this._applyMoves('R U\' L\' U R\' U\' L'); // This is a common algorithm for corner permutation
+                        this.addStep('Permuting yellow corners (1 correct)', 'R U\' L\' U R\' U\' L');
+                    } else { // 0 or 2 correct corners (if 2, they must be opposite)
+                        // Apply the algorithm from any position; it will place at least one corner correctly.
+                        this._applyMoves('R U\' L\' U R\' U\' L');
+                        this.addStep('Permuting yellow corners (0/2 correct)', 'R U\' L\' U R\' U\' L');
+                    }
+                    maxAttempts--;
+                }
+            }
+
+            /**
+             * Step 6: Orients Last Layer Corners (Gets all yellow stickers on the Up face).
+             * This step rotates the corners in place until their yellow stickers face upwards.
+             */
+            _orientLastLayerCorners() {
+                const yellow = 'y';
+                let maxAttempts = 20; // Max attempts per corner, usually 2 or 4 applications of R U R' U'
+
+                // Iterate through the 4 U-layer corners. We will bring each to the U-F-R slot (index 8)
+                // and orient it using R U R' U' until its yellow sticker is on the U face.
+                for (let i = 0; i < 4; i++) {
+                    // While the yellow sticker of the U-F-R corner is not on the U face (index 8)
+                    while (this._get(8) !== yellow && maxAttempts > 0) {
+                        this._applyMoves('R U R\' U\'');
+                        this.addStep('Orienting yellow corner at U-F-R slot', 'R U R\' U\'');
+                        maxAttempts--;
+                    }
+                    // After orienting the current corner, rotate the U face to bring the next unoriented corner
+                    // to the U-F-R slot. This is done 3 times for the remaining 3 corners.
+                    if (i < 3) { // No need to rotate U after the last corner is oriented
+                        this._applyMoves('U');
+                        this.addStep('Moving to next yellow corner', 'U');
+                    }
+                    maxAttempts = 20; // Reset attempts for the next corner
+                }
+            }
+
+            /**
+             * Step 7: Permutes Last Layer Edges (Places yellow edges in correct positions).
+             * This is the final step, ensuring all edges on the Up face are in their correct slots.
+             */
+            _permuteLastLayerEdges() {
+                const green = 'g';
+                const red = 'r';
+                const blue = 'b';
+                const orange = 'o';
+                const yellow = 'y'; // U face center color
+
+                // Helper to check if an edge is correctly placed (yellow on U, other color on face)
+                const isEdgeSolved = (uIdx, faceIdx, faceColor) => {
+                    return this._get(uIdx) === yellow && this._get(faceIdx) === faceColor;
+                };
+
+                let maxAttempts = 10;
+                while (maxAttempts > 0) {
+                    let solvedEdges = 0;
+                    let solvedEdgeFace = ''; // To identify which face has the solved edge
+
+                    // Check each edge for its solved state
+                    if (isEdgeSolved(1, 19, green)) { solvedEdges++; solvedEdgeFace = 'F'; } // U-F (yellow-green)
+                    if (isEdgeSolved(5, 28, red)) { solvedEdges++; solvedEdgeFace = 'R'; }   // U-R (yellow-red)
+                    if (isEdgeSolved(7, 37, blue)) { solvedEdges++; solvedEdgeFace = 'B'; }  // U-B (yellow-blue)
+                    if (isEdgeSolved(3, 10, orange)) { solvedEdges++; solvedEdgeFace = 'L'; } // U-L (yellow-orange)
+
+                    if (solvedEdges === 4) break; // Cube is fully solved
+
+                    if (solvedEdges === 1) {
+                        // If one edge is solved, rotate U until it's at the Back face (U-B, index 7)
+                        // This aligns it for the common PLL edge permutation algorithms.
+                        while (!isEdgeSolved(7, 37, blue)) {
+                            this._applyMoves('U');
+                            this.addStep('Aligning solved edge to Back face', 'U');
+                        }
+
+                        // Determine which cycle is needed (clockwise or counter-clockwise)
+                        // Check the colors of the adjacent faces of the remaining edges
+                        const f1 = this._get(19); // F1 sticker
+                        const r1 = this._get(28); // R1 sticker
+                        const b1 = this._get(37); // B1 sticker (this one should be blue and solved)
+                        const l1 = this._get(10); // L1 sticker
+
+                        // If F1 is red (should be green), R1 is blue (should be red), L1 is green (should be orange)
+                        // This means F needs to go to R, R to B, B to L, L to F (clockwise cycle from F's perspective)
+                        // (F->R->L)
+                        if (f1 === red && r1 === orange && l1 === green) { // Example of a clockwise cycle
+                            this._applyMoves('R2 U R U R\' U\' R\' U\' R\' U R\''); // A-Perm (Ua)
+                            this.addStep('Cycling edges clockwise', 'R2 U R U R\' U\' R\' U\' R\' U R\'');
+                        }
+                        // If F1 is orange (should be green), L1 is red (should be orange), R1 is green (should be red)
+                        // This means F needs to go to L, L to B, B to R, R to F (counter-clockwise cycle from F's perspective)
+                        // (F->L->R)
+                        else if (f1 === orange && l1 === red && r1 === green) { // Example of a counter-clockwise cycle
+                            this._applyMoves('R2 U\' R\' U\' R U R U R U\' R'); // A-Perm (Ub)
+                            this.addStep('Cycling edges counter-clockwise', 'R2 U\' R\' U\' R U R U R U\' R');
+                        } else {
+                            // If an unexpected state, just rotate U and retry.
+                            this._applyMoves('U');
+                            this.addStep('Rotating U to find edge cycle', 'U');
+                        }
+                    } else if (solvedEdges === 0) {
+                        // If no edges are solved, apply one of the A-Perm algorithms.
+                        // It will solve at least one edge, then the above logic can take over.
+                        this._applyMoves('R2 U R U R\' U\' R\' U\' R\' U R\'');
+                        this.addStep('Solving first edge (no solved edges)', 'R2 U R U R\' U\' R\' U\' R\' U R\'');
+                    }
+                    maxAttempts--;
+                }
+            }
+        } // End of RubiksCube class
+
+        // --- UI Event Listeners and Display Logic ---
+
+        // Get references to DOM elements
+        const cubeDisplay = document.getElementById('mainCubeDisplay');
+        const scrambleButton = document.getElementById('scrambleButton');
+        const solveButton = document.getElementById('solveButton');
+        const resetButton = document.getElementById('resetButton');
+        const manualMoveButtons = document.querySelectorAll('.button-grid button');
+        const stepsList = document.getElementById('stepsList');
+
+        // Initialize a new Rubik's Cube instance
+        let rubiksCube = new RubiksCube();
+
+        /**
+         * Updates the SVG display of the cube in a given container.
+         * @param {string} cubeStateString - The 54-character string representing the cube state.
+         * @param {HTMLElement} container - The DOM element where the SVG should be rendered.
+         * @param {string} [size='large'] - 'large' for main display, 'small' for solution steps.
+         */
+        function updateCubeDisplay(cubeStateString, container, size = 'large') {
+            container.innerHTML = getCubeSvg(cubeStateString);
+            // Apply appropriate CSS classes based on size
+            if (size === 'small') {
+                container.classList.add('step-cube-svg');
+                container.classList.remove('cube-container');
+            } else {
+                container.classList.add('cube-container');
+                container.classList.remove('step-cube-svg');
+            }
+        }
+
+        /**
+         * Displays the solution steps in the dedicated area.
+         * @param {Array} history - An array of objects, each representing a step in the solution.
+         */
+        function displaySolutionSteps(history) {
+            stepsList.innerHTML = ''; // Clear any previously displayed steps
+            history.forEach((step, index) => {
+                const stepDiv = document.createElement('div');
+                stepDiv.className = 'step-item'; // Apply styling for each step
+
+                const cubeSvgContainer = document.createElement('div');
+                // Render a smaller cube SVG for each step
+                updateCubeDisplay(step.state.join(''), cubeSvgContainer, 'small');
+
+                const textContent = document.createElement('div');
+                textContent.className = 'flex flex-col'; // Flex column for text
+                const stepNumber = document.createElement('span');
+                stepNumber.className = 'text-lg font-semibold text-gray-800';
+                stepNumber.textContent = `Step ${index + 1}: ${step.description}`;
+                const moveText = document.createElement('span');
+                moveText.className = 'text-md text-gray-600';
+                moveText.textContent = step.move ? `Move: ${step.move}` : ''; // Display the move if available
+
+                textContent.appendChild(stepNumber);
+                textContent.appendChild(moveText);
+
+                stepDiv.appendChild(cubeSvgContainer);
+                stepDiv.appendChild(textContent);
+                stepsList.appendChild(stepDiv);
+            });
+            // Scroll to the bottom of the steps list to show the latest steps
+            stepsList.scrollTop = stepsList.scrollHeight;
+        }
+
+        // Initial rendering of the solved cube when the page loads
+        updateCubeDisplay(rubiksCube.getCubeString(), cubeDisplay);
+
+        // Event listener for the "Scramble Cube" button
+        scrambleButton.addEventListener('click', () => {
+            rubiksCube.scramble(25); // Scramble with 25 random moves
+            updateCubeDisplay(rubiksCube.getCubeString(), cubeDisplay); // Update main display
+            stepsList.innerHTML = ''; // Clear solution steps when scrambling
+        });
+
+        // Event listener for the "Solve Cube" button
+        solveButton.addEventListener('click', () => {
+            // Execute the solving algorithm and get the history of steps
+            const solutionHistory = rubiksCube.solve();
+            updateCubeDisplay(rubiksCube.getCubeString(), cubeDisplay); // Show the final solved state
+            displaySolutionSteps(solutionHistory); // Display all recorded steps
+        });
+
+        // Event listener for the "Reset Cube" button
+        resetButton.addEventListener('click', () => {
+            rubiksCube.reset(); // Reset cube to solved state
+            updateCubeDisplay(rubiksCube.getCubeString(), cubeDisplay); // Update main display
+            stepsList.innerHTML = ''; // Clear solution steps
+        });
+
+        // Event listeners for all manual rotation buttons
+        manualMoveButtons.forEach(button => {
+            button.addEventListener('click', (event) => {
+                const move = event.target.dataset.move; // Get the move from the data-move attribute
+                rubiksCube.rotate(move); // Perform the rotation
+                updateCubeDisplay(rubiksCube.getCubeString(), cubeDisplay); // Update main display
+                stepsList.innerHTML = ''; // Clear solution steps on manual move
+            });
+        });
+
+    </script>
+</body>
+</html>
